@@ -1,0 +1,138 @@
+import os
+import re
+import json
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from huggingface_hub import login
+from utils.config_loader import load_config
+
+# Load configuration from config.yaml
+config = load_config()
+
+# Log in using the token from the config
+login(token=config["models"]["huggingface_token"])
+
+def load_model(model_name):
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name, torch_dtype=torch.float16, device_map="auto"
+    )
+    return model, tokenizer
+
+def infer(model, tokenizer, prompt, max_new_tokens=100):
+    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+    output_ids = model.generate(**inputs, max_new_tokens=max_new_tokens)
+    output_text = tokenizer.decode(output_ids[0], skip_special_tokens=True)
+    return output_text
+
+def generate_response(model, tokenizer, prompt):
+    messages = [
+        {"role": "system", "content": ""},
+        {"role": "user", "content": prompt}
+    ]
+    # Use the chat template function (if available)
+    text = tokenizer.apply_chat_template(
+        messages,
+        tokenize=False,
+        add_generation_prompt=True
+    )
+    model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
+    generated_ids = model.generate(
+        **model_inputs,
+        max_new_tokens=1024,
+    )
+    # Remove input tokens from the generated output
+    generated_ids = [
+        output_ids[len(input_ids):]
+        for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
+    ]
+    response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+    final_answer = response.split("</think>")[-1].strip()
+    return final_answer
+
+def load_few_shot_examples(test_dir, category_name):
+    """
+    Load few-shot examples from the corresponding dev directory.
+    It replaces '/test/' with '/dev/' in the given test_dir.
+    """
+    dev_dir = test_dir.replace("/test/", "/dev/")
+    few_shot_file = os.path.join(dev_dir, f"{category_name}.json")
+    if os.path.exists(few_shot_file):
+        with open(few_shot_file, "r") as f:
+            data = json.load(f)
+            return data.get("examples", [])
+    return None
+
+def generate_prompt(prompt_type, example_input, few_shot_examples=None):
+    if prompt_type == "prompt_without_cot":
+        return f"Answer this multiple-choice question without carrying out chain-of-thought prompting. Do not figure this out step by step. Give your answer immediately, Answer in format '(letter)'. Return final position with minimal analysis. {example_input}"
+    elif prompt_type == "prompt_with_cot":
+        return f"Provide the rationale before answering, and then give the answer in format '(letter)': {example_input}"
+    elif prompt_type == "prompt_few_shot" and few_shot_examples:
+        prefix = "Following are some examples of Input and Answers. "
+        few_shot_prompt = "\n".join(
+            [f"Input: {ex['input']}\nAnswer: {ex['target']}" for ex in few_shot_examples]
+        )
+        suffix = "Answer this multiple-choice question without carrying out chain-of-thought prompting. Do not figure this out step by step. Give your answer immediately, Answer in format '(letter)'. Return final position with minimal analysis. "
+        return f"{prefix}{few_shot_prompt}\n{suffix}{example_input}"
+    return example_input
+
+def process_dataset(json_dirs, output_dir, prompt_type):
+    os.makedirs(output_dir, exist_ok=True)
+    MODEL_NAMES = config["models"]["names"]
+    
+    for model_name in MODEL_NAMES:
+        print(f"Processing model: {model_name}")
+        model, tokenizer = load_model(model_name)
+        
+        for json_dir in json_dirs:
+            results = []
+            # Use basename to get the folder name (e.g., "basic_swap")
+            type_q = os.path.basename(json_dir)
+            json_files = [f for f in os.listdir(json_dir) if f.endswith(".json")]
+            
+            # Create subdirectory for the folder inside output_dir
+            type_q_output_dir = os.path.join(output_dir, type_q)
+            os.makedirs(type_q_output_dir, exist_ok=True)
+            
+            for json_file in json_files:
+                category_name = json_file[:-5]  # Remove ".json" to get the category
+                few_shot_examples = (
+                    load_few_shot_examples(json_dir, category_name)
+                    if prompt_type == "prompt_few_shot"
+                    else None
+                )
+                with open(os.path.join(json_dir, json_file), "r") as f:
+                    data = json.load(f)
+                
+                for example in data.get("examples", []):
+                    prompt = generate_prompt(prompt_type, example["input"], few_shot_examples)
+                    response = generate_response(model, tokenizer, prompt)
+                    results.append({
+                        "id": example["id"],
+                        "category": category_name,
+                        "model": model_name,
+                        "input": example["input"],
+                        "target": example["target"],
+                        "response": response
+                    })
+            
+            output_file = os.path.join(
+                type_q_output_dir, f"{model_name.replace('/', '_')}_{prompt_type}_output.json"
+            )
+            with open(output_file, "w") as f:
+                json.dump(results, f, indent=4)
+            print(f"Results saved to {output_file}")
+
+if __name__ == '__main__':
+    # Retrieve run_experiment configuration from the YAML file.
+    run_config = config["run_experiment"]
+    
+    dataset_dir = run_config["dataset_dir"]
+    output_dir = run_config["output_dir"]
+    prompt_type = run_config["prompt_type"]
+    subfolders = run_config["subfolders"]
+    
+    json_dirs = [os.path.join(dataset_dir, subfolder) for subfolder in subfolders]
+    
+    process_dataset(json_dirs, os.path.join(output_dir, prompt_type), prompt_type)
