@@ -3,3 +3,4 @@ __pycache__/
 output_results/
 dataset_dynamic/
 venv/
+config.yaml

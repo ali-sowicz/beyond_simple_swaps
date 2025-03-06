@@ -13,17 +13,21 @@ gpu_id = config["run_experiment"].get("gpu_id", 0)  # Default to GPU 0 if not sp
 # Set the CUDA_VISIBLE_DEVICES environment variable
 os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
 
+# Check if CUDA is available
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
 def load_model(model_name):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForCausalLM.from_pretrained(
-        model_name, torch_dtype=torch.float16
+        model_name, torch_dtype=torch.float16 if device.type == "cuda" else torch.float32
     )
-    model.to("cuda:0")
+    model.to(device)
 
     return model, tokenizer
 
 def infer(model, tokenizer, prompt, max_new_tokens=100):
-    inputs = tokenizer(prompt, return_tensors="pt").to("cuda:0")
+    inputs = tokenizer(prompt, return_tensors="pt").to(device)
     output_ids = model.generate(**inputs, max_new_tokens=max_new_tokens)
     output_text = tokenizer.decode(output_ids[0], skip_special_tokens=True)
     return output_text

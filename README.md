@@ -10,20 +10,20 @@ Update the config.yaml file with correct paths, prompt type, and GPU id before p
 ## Usage
 1. **Running Experiments**: To run experiments and generate model responses, execute: 
 ```python
-python src/run_experiment.py
+python -m src.run_experiment
 ```
 This script reads the test datasets (as configured in config.yaml), sends prompts to each model, and saves the responses in the specified output directory.
 
 2. **Computing Accuracy**: After running experiments, compute accuracy by extracting answer letters from responses: 
 ```python
-python src/compute_accuracy.py
+python -m src.compute_accuracy
 ```
 This script compares extracted letters with the ground truth, computes accuracy, and saves both an evaluation metadata file and an accuracy summary.
 
 
 3. **Manual Correction**: For cases where responses are in the wrong format, manually update the "extracted_by_hand" field in the evaluation metadata file, then run: 
 ```python
-python src/manual_correction.py
+python -m src.manual_correction
 ```
 This script applies your manual corrections and recomputes the accuracy statistics, saving the updated metadata and new accuracy summary.
 
