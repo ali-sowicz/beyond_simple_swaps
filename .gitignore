@@ -1,4 +1,5 @@
 __pycache__/
 *.pyc
-output/
-data/
+output_results/
+dataset_dynamic/
+venv/

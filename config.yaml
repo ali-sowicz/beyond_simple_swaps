@@ -8,10 +8,11 @@ models:
 
 
 run_experiment:
+  gpu_id: 0 # Specify the GPU ID here
   dataset_dir: "/path/to/data/dataset_dynamic/test"
   output_dir: "/path/to/output/output_results"
   prompt_type: "prompt_with_cot"  # or prompt_without_cot, prompt_few_shot
-  subfolders:   
+  subfolders:   # specify if you want to run experiment on all subfolders
     - basic_swap 
     - negations
     - overlap

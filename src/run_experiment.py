@@ -6,21 +6,24 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from huggingface_hub import login
 from utils.config_loader import load_config
 
-# Load configuration from config.yaml
 config = load_config()
-
-# Log in using the token from the config
 login(token=config["models"]["huggingface_token"])
+gpu_id = config["run_experiment"].get("gpu_id", 0)  # Default to GPU 0 if not specified
+
+# Set the CUDA_VISIBLE_DEVICES environment variable
+os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
 
 def load_model(model_name):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForCausalLM.from_pretrained(
-        model_name, torch_dtype=torch.float16, device_map="auto"
+        model_name, torch_dtype=torch.float16
     )
+    model.to("cuda:0")
+
     return model, tokenizer
 
 def infer(model, tokenizer, prompt, max_new_tokens=100):
-    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+    inputs = tokenizer(prompt, return_tensors="pt").to("cuda:0")
     output_ids = model.generate(**inputs, max_new_tokens=max_new_tokens)
     output_text = tokenizer.decode(output_ids[0], skip_special_tokens=True)
     return output_text
@@ -134,5 +137,5 @@ if __name__ == '__main__':
     subfolders = run_config["subfolders"]
     
     json_dirs = [os.path.join(dataset_dir, subfolder) for subfolder in subfolders]
-    
+
     process_dataset(json_dirs, os.path.join(output_dir, prompt_type), prompt_type)
