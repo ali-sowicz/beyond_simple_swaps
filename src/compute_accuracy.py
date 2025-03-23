@@ -1,6 +1,7 @@
 import os
 import re
 import json
+from collections import defaultdict
 from utils.config_loader import load_config
 
 def extract_letter(text):
@@ -46,6 +47,8 @@ def compute_accuracy(json_dir):
     folders = ["overlap", "negations", "basic_swap", "rules"]
     results = {}
     evaluation_metadata = []  
+    incorrect_results = []
+
 
     for folder in folders:
         folder_path = os.path.join(json_dir, folder)
@@ -64,24 +67,38 @@ def compute_accuracy(json_dir):
             correct = 0
             total = 0
             correct_format_count = 0
+            # category_accuracy = {}
+            category_accuracy = defaultdict(lambda: {"total": 0, "correct": 0, "correct_format_count": 0})
 
             for example in data:
                 # Extract target letter (expected to be correctly formatted)
                 target_letter = extract_letter(example["target"])
                 extracted_letter, format_flag = extract_letter_from_response(example["response"])
+                category =  example.get("category", folder)
 
                 is_correct = (target_letter is not None and extracted_letter is not None and target_letter == extracted_letter)
                 if is_correct:
                     correct += 1
+                    category_accuracy[category]["correct"] += 1
+                else:
+                    incorrect_results.append({
+                        "id": example["id"],
+                        "folder": folder,
+                        "category": category,
+                        "file": json_file
+                    })
                 total += 1
+                category_accuracy[category]["total"] += 1
 
                 if format_flag == "correct_format":
                     correct_format_count += 1
+                    category_accuracy[category]["correct_format_count"] += 1
+
 
                 evaluation_metadata.append({
                     "id": example["id"],
                     "folder": folder,
-                    "category": example.get("category", folder),
+                    "category": category,
                     "file": json_file,
                     "target": target_letter,
                     "extracted": extracted_letter,
@@ -90,13 +107,21 @@ def compute_accuracy(json_dir):
                     "is_correct": is_correct,
                     "response": example["response"]
                 })
-
+                
             accuracy = (correct / total) * 100 if total > 0 else 0
+
+            # Compute per-category accuracy
+            for category in category_accuracy:
+                cat_total = category_accuracy[category]["total"]
+                cat_correct = category_accuracy[category]["correct"]
+                category_accuracy[category]["accuracy"] = (cat_correct / cat_total) * 100 if cat_total > 0 else 0
+
             folder_results[json_file] = {
                 "accuracy": accuracy,
                 "total": total,
                 "correct": correct,
-                "correct_format_count": correct_format_count
+                "correct_format_count": correct_format_count,
+                "category_accuracy": category_accuracy
             }
             print(f"Processed {json_file} in {folder}: Accuracy = {accuracy:.2f}% (Total: {total}, Correct: {correct}, Correct Format: {correct_format_count})")
 
@@ -113,6 +138,11 @@ def compute_accuracy(json_dir):
     with open(accuracy_file, "w") as f:
         json.dump(results, f, indent=4)
     print(f"Accuracy summary saved to {accuracy_file}")
+
+    incorrect_file = os.path.join(json_dir, "incorrect_results.json")
+    with open(incorrect_file, "w") as f:
+        json.dump(incorrect_results, f, indent=4)
+    print(f"Incorrect results saved to {incorrect_file}")
 
     return results
 

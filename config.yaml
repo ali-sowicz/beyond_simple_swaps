@@ -9,6 +9,7 @@ models:
 
 run_experiment:
   gpu_id: 0 # Specify the GPU ID here
+  batch_size: 25
   dataset_dir: "../eval_dynamic/data/dataset_dynamic/test"
   output_dir: "../eval_dynamic/output/output_results"
   prompt_type: "prompt_without_cot"  # or prompt_without_cot, prompt_few_shot
@@ -19,7 +20,7 @@ run_experiment:
     - rules
 
 compute_accuracy:
-  json_dir: "../eval_dynamic/output/output_results/prompt_without_cot" # or prompt_without_cot, prompt_few_shot
+  json_dir: "../eval_dynamic/output/output_results/prompt_without_cot" # prompt_with_cot or prompt_without_cot, prompt_few_shot
 
 manual_correction:
   metadata_path: "../eval_dynamic/output/output_results/prompt_with_cot/evaluation_metadata.json"

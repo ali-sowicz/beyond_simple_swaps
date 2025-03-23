@@ -38,31 +38,59 @@ def correct_and_evaluate_metadata(metadata_path, updated_metadata_path, accuracy
             record["is_correct"] = True
 
     # Compute summary per file per folder.
-    summary = defaultdict(lambda: defaultdict(lambda: {"correct": 0, "total": 0, "correct_format_count": 0}))
+    summary = defaultdict(lambda: defaultdict(lambda: {
+        "total": 0, 
+        "correct": 0, 
+        "correct_format_count": 0,
+        "categories": defaultdict(lambda: {"total": 0, "correct": 0, "correct_format_count": 0})
+    }))
     
     for record in metadata:
         folder = record.get("folder")
         file_name = record.get("file")
+        category = record.get("category")
         summary[folder][file_name]["total"] += 1
+        summary[folder][file_name]["categories"][category]["total"] += 1
         if record.get("is_correct"):
             summary[folder][file_name]["correct"] += 1
+            summary[folder][file_name]["categories"][category]["correct"] += 1
+
         if record.get("format") == "correct_format":
             summary[folder][file_name]["correct_format_count"] += 1
+            summary[folder][file_name]["categories"][category]["correct_format_count"] += 1
 
     # Prepare the accuracy summary in the desired format.
     accuracy_summary = {}
+    print(summary)
+    print(summary.items())
     for folder, files in summary.items():
         accuracy_summary[folder] = {}
         for file_name, counts in files.items():
             total = counts["total"]
             correct = counts["correct"]
             accuracy = (correct / total) * 100 if total > 0 else 0
-            accuracy_summary[folder][file_name] = {
-                "accuracy": accuracy,
-                "total": total,
-                "correct": correct,
-                "correct_format_count": counts["correct_format_count"]
+            # Compute per-category accuracy
+            file_summary = {
+            "accuracy": accuracy,
+            "total": total,
+            "correct": correct,
+            "correct_format_count": counts["correct_format_count"],
+            "category_accuracy": {}
             }
+
+            for category, cat_counts in counts["categories"].items():
+                cat_total = cat_counts["total"]
+                cat_correct = cat_counts["correct"]
+                cat_accuracy = (cat_correct / cat_total) * 100 if cat_total > 0 else 0
+
+                file_summary["category_accuracy"][category] = {
+                    "total": cat_total,
+                    "correct": cat_correct,
+                    "correct_format_count": cat_counts["correct_format_count"],
+                    "accuracy": cat_accuracy,
+                }
+            accuracy_summary[folder][file_name] = file_summary
+
     
     # Write updated metadata to disk.
     with open(updated_metadata_path, "w") as f:
