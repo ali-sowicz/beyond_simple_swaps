@@ -45,6 +45,7 @@ thought (CoT), and no CoT (direct answering)...
 
 👉 [Read full abstract](ABSTRACT.md)
 
+## 🧩 Benchmark Examples
 
 | Reasoning Categories                   | Example                                                         |
 | -------------------------- | --------------------------------------------------------------- |
