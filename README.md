@@ -27,3 +27,21 @@ python -m src.manual_correction
 ```
 This script applies your manual corrections and recomputes the accuracy statistics, saving the updated metadata and new accuracy summary.
 
+
+
+## 📜 Abstract
+
+Large language models (LLMs) have shown impressive capabilities in specialized domains like
+ mathematics and coding, yet often rely on surface-level patterns rather than genuine systematic
+ reasoning. This thesis addresses an underexplored area in current benchmarks: how LLMs handle
+ fundamental cognitive skills like object tracking and spatial reasoning. This work introduces a
+ novel benchmark with four distinct reasoning categories (Basic Swap, Negations, Overlap, and
+ Rules).
+ The benchmark includes a core dataset (1,200 questions) and an extended version with elon
+gated contexts to test robustness. Five small instruction-tuned LLMs (DeepSeek-R1-Distill-Qwen
+1.5B, Llama-3.2-1B/3B, Phi-3.5-Mini, and Qwen2.5-1.5B) were evaluated under three prompt
+ing strategies: providing examples with few-shot, step-by-step reasoning prompts with chain-of
+thought (CoT), and no CoT (direct answering)...
+
+👉 [Read full abstract](ABSTRACT.md)
+
