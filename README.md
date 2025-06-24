@@ -45,3 +45,11 @@ thought (CoT), and no CoT (direct answering)...
 
 👉 [Read full abstract](ABSTRACT.md)
 
+
+| Reasoning Categories                   | Example                                                         |
+| -------------------------- | --------------------------------------------------------------- |
+| **1. Basic Swap**     | ![BS](assets/examples/basic_swap.png)         |
+| **2. Negations**   | ![N](assets/examples/negations.png)     |
+| **3. Overlap** | ![O](assets/examples/overlap.png) |
+| **4. Rules**    | ![R](assets/examples/rules.png)       |
+
